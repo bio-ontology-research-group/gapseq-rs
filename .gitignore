@@ -11,3 +11,6 @@ tools/.sbml-validate/
 
 # Benchmark scratch
 tools/bench/__pycache__/
+
+# Local secrets (crates.io token, etc.) — never commit
+.secrets/
