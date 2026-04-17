@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
 description = "I/O helpers for gapsmith: model (de)serialization (CBOR/JSON), paths, TSV/FASTA utilities."
 
 [dependencies]

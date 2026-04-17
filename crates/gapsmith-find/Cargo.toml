@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
 description = "Pathway/reaction finder for gapsmith: selects pathways, orchestrates alignment, classifies hits, scores completeness."
 
 [dependencies]

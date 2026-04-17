@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
 description = "Transporter detection for gapsmith (port of src/transporter.sh + analyse_alignments_transport.R)."
 
 [dependencies]

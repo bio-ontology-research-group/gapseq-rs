@@ -34,17 +34,18 @@ clap = { version = "4", features = ["derive", "wrap_help"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Workspace-internal
-gapsmith-core = { path = "crates/gapsmith-core" }
-gapsmith-io   = { path = "crates/gapsmith-io" }
-gapsmith-db   = { path = "crates/gapsmith-db" }
-gapsmith-sbml = { path = "crates/gapsmith-sbml" }
-gapsmith-align = { path = "crates/gapsmith-align" }
-gapsmith-find = { path = "crates/gapsmith-find" }
-gapsmith-transport = { path = "crates/gapsmith-transport" }
-gapsmith-draft = { path = "crates/gapsmith-draft" }
-gapsmith-fill = { path = "crates/gapsmith-fill" }
-gapsmith-medium = { path = "crates/gapsmith-medium" }
+# Workspace-internal (version is required for crates.io publishing;
+# path is used for local builds and stripped on publish)
+gapsmith-core      = { version = "0.1.0", path = "crates/gapsmith-core" }
+gapsmith-io        = { version = "0.1.0", path = "crates/gapsmith-io" }
+gapsmith-db        = { version = "0.1.0", path = "crates/gapsmith-db" }
+gapsmith-sbml      = { version = "0.1.0", path = "crates/gapsmith-sbml" }
+gapsmith-align     = { version = "0.1.0", path = "crates/gapsmith-align" }
+gapsmith-find      = { version = "0.1.0", path = "crates/gapsmith-find" }
+gapsmith-transport = { version = "0.1.0", path = "crates/gapsmith-transport" }
+gapsmith-draft     = { version = "0.1.0", path = "crates/gapsmith-draft" }
+gapsmith-fill      = { version = "0.1.0", path = "crates/gapsmith-fill" }
+gapsmith-medium    = { version = "0.1.0", path = "crates/gapsmith-medium" }
 
 # SBML-specific
 quick-xml   = "0.37"

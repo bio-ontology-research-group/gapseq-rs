@@ -30,39 +30,74 @@ An external sequence aligner (pick one):
 | DIAMOND | `apt install diamond` or `conda install -c bioconda diamond` |
 | MMseqs2 | `apt install mmseqs2` or `conda install -c bioconda mmseqs2` |
 
-### Reference data
+Plus a C++ toolchain (`cmake`, `gcc`/`clang`) for the bundled HiGHS LP
+solver — any Linux / macOS system with dev-tools installed will do.
+
+### Option 1: pre-built binary (fastest)
 
 ```bash
-git clone --depth 1 https://github.com/jotech/gapseq.git
+# Pick the right target for your OS/arch; see Releases page.
+TARGET=x86_64-unknown-linux-gnu
+VER=$(curl -s https://api.github.com/repos/bio-ontology-research-group/gapsmith/releases/latest \
+  | grep '"tag_name"' | head -1 | sed 's/.*"\(v[^"]*\)".*/\1/')
+curl -L https://github.com/bio-ontology-research-group/gapsmith/releases/download/$VER/gapsmith-$VER-$TARGET.tar.gz | tar xz
+cd gapsmith-$VER-$TARGET
+./gapsmith --version
 ```
 
-Then download the reference sequence database:
+Each release tarball bundles the binary + curated data tables. See the
+[releases page](https://github.com/bio-ontology-research-group/gapsmith/releases).
+
+### Option 2: cargo install (directly from git)
 
 ```bash
-gapsmith update-sequences -t Bacteria
+cargo install --git https://github.com/bio-ontology-research-group/gapsmith.git gapsmith-cli
 ```
 
-### Build from source
+Installs `gapsmith` into `~/.cargo/bin/`. You still need the `data/`
+curation tables — clone the repo or grab them from a release tarball.
+
+### Option 3: build from source
 
 ```bash
 git clone https://github.com/bio-ontology-research-group/gapsmith.git
 cd gapsmith
 cargo build --release
-# Binary: target/release/gapsmith
+# Binary: target/release/gapsmith, curated data in ./data/
 ```
+
+### Reference data
+
+Two parts, independent:
+
+1. **Curation tables** (subex, medium rules, biomass templates, …) —
+   vendored in this repo under `data/`. ~1 MB. Auto-used when running
+   from a checkout; bundled inside release tarballs.
+2. **Sequence database** (per-reaction FASTAs, ~2 GB) — downloaded
+   from Zenodo on demand:
+
+    ```bash
+    gapsmith update-sequences -t Bacteria
+    ```
+
+3. **Large public reference tables** (SEED reactions + metabolites,
+   MNXref) — currently user-supplied via `--data-dir`. Easiest source:
+   clone upstream gapseq (`git clone --depth 1 https://github.com/jotech/gapseq.git`)
+   and point `--data-dir` at its `dat/` directory. Future versions
+   will bundle these via `gapsmith update-data`.
 
 ## Quick start
 
 ```bash
 # Full reconstruction pipeline (find → transport → draft → medium → fill)
-gapseq --data-dir gapseq/dat doall genome.faa.gz -f output/ -A diamond
+gapsmith --data-dir path/to/dat doall genome.faa.gz -f output/ -A diamond
 
 # Step by step
-gapseq --data-dir gapseq/dat find -p all -A diamond -o output/ genome.faa
-gapseq --data-dir gapseq/dat find-transport -A diamond -o output/ genome.faa
-gapseq --data-dir gapseq/dat draft -r output/*-Reactions.tbl -t output/*-Transporter.tbl -o output/
-gapseq --data-dir gapseq/dat medium -m output/*-draft.gmod.cbor -p output/*-Pathways.tbl
-gapseq --data-dir gapseq/dat fill output/*-draft.gmod.cbor -n output/*-medium.csv -r output/*-Reactions.tbl -o output/
+gapsmith --data-dir path/to/dat find -p all -A diamond -o output/ genome.faa
+gapsmith --data-dir path/to/dat find-transport -A diamond -o output/ genome.faa
+gapsmith --data-dir path/to/dat draft -r output/*-Reactions.tbl -t output/*-Transporter.tbl -o output/
+gapsmith --data-dir path/to/dat medium -m output/*-draft.gmod.cbor -p output/*-Pathways.tbl
+gapsmith --data-dir path/to/dat fill output/*-draft.gmod.cbor -n output/*-medium.csv -r output/*-Reactions.tbl -o output/
 ```
 
 ### Output files
@@ -99,6 +134,11 @@ gapseq --data-dir gapseq/dat fill output/*-draft.gmod.cbor -n output/*-medium.cs
 Run any command with `-h` for full option documentation.
 
 ## Documentation
+
+Full documentation is published at
+**https://bio-ontology-research-group.github.io/gapsmith/**.
+
+Local copies:
 
 | Document | Contents |
 |----------|----------|

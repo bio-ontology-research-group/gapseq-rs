@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+repository.workspace = true
 description = "Streaming SBML L3V1 + FBC2 + groups writer for gapsmith."
 
 [dependencies]
