@@ -175,13 +175,17 @@ pub fn build_full_model(
         .map(|r| strip_compartment(r.id.as_str()).to_string())
         .collect();
     let mut taken_hashes: HashSet<String> = HashSet::new();
-    for r in &seed_rxns
+    for r in seed_rxns
         .iter()
         .filter(|r| present_seeds.contains(r.id.as_str()))
-        .collect::<Vec<_>>()
     {
-        let h = rxn_stoich_hash(&r.stoichiometry, r.reversibility.as_str())
-            .map_err(|e| e.to_string())?;
+        // Prefer the hash cached at load time; fall back to recompute
+        // for rows constructed outside of `load_seed_reactions` (tests).
+        let h = match r.stoich_hash.as_deref() {
+            Some(h) => h.to_string(),
+            None => rxn_stoich_hash(&r.stoichiometry, r.reversibility.as_str())
+                .map_err(|e| e.to_string())?,
+        };
         taken_hashes.insert(h);
     }
 
@@ -203,9 +207,12 @@ pub fn build_full_model(
 
     let mut added_seeds = Vec::<String>::new();
     for row in candidates {
-        let h = match rxn_stoich_hash(&row.stoichiometry, row.reversibility.as_str()) {
-            Ok(h) => h,
-            Err(_) => continue,
+        let h = match row.stoich_hash.as_deref() {
+            Some(h) => h.to_string(),
+            None => match rxn_stoich_hash(&row.stoichiometry, row.reversibility.as_str()) {
+                Ok(h) => h,
+                Err(_) => continue,
+            },
         };
         if !taken_hashes.insert(h) {
             continue;

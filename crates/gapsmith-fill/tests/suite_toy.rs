@@ -101,6 +101,7 @@ fn toy_seed_rxns() -> Vec<SeedRxnRow> {
         notes: String::new(),
         is_copy_of: String::new(),
         gapseq_status: SeedStatus::Approved,
+        stoich_hash: None,
     }]
 }
 

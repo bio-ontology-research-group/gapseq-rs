@@ -88,19 +88,36 @@ pub fn apply_medium(model: &mut Model, medium: &[MediumEntry], scaling_fac: f64,
         }
     }
 
-    // 2. Open for each medium compound; add missing EX if needed.
+    // 2. Build a one-shot index of rxn_id → rxn_index. Lets the per-entry
+    // lookup below be O(1) instead of `rxns.iter().find(..)` per entry
+    // (previously O(k·n); with k=20 medium entries and n=500 rxns that was
+    // ~10k iterations before this pass).
+    let rxn_idx: std::collections::HashMap<String, usize> = model
+        .rxns
+        .iter()
+        .enumerate()
+        .map(|(i, r)| (r.id.as_str().to_string(), i))
+        .collect();
+    let mut met_idx_cache: std::collections::HashMap<String, usize> = model
+        .mets
+        .iter()
+        .enumerate()
+        .map(|(i, m)| (m.id.as_str().to_string(), i))
+        .collect();
+
+    // 3. Open for each medium compound; add missing EX if needed.
     for entry in medium {
         let rxn_id = format!("EX_{}_e0", entry.compound);
         let met_id = format!("{}_e0", entry.compound);
 
-        if let Some(r) = model.rxns.iter_mut().find(|r| r.id.as_str() == rxn_id) {
-            r.lb = -entry.max_flux * scaling_fac;
+        if let Some(&i) = rxn_idx.get(&rxn_id) {
+            model.rxns[i].lb = -entry.max_flux * scaling_fac;
             continue;
         }
 
         // Need to add a new exchange. Ensure met exists.
-        let met_idx = match model.mets.iter().position(|m| m.id.as_str() == met_id) {
-            Some(i) => i,
+        let met_idx = match met_idx_cache.get(&met_id) {
+            Some(&i) => i,
             None => {
                 let met = Metabolite::new(
                     met_id.as_str(),
@@ -108,7 +125,9 @@ pub fn apply_medium(model: &mut Model, medium: &[MediumEntry], scaling_fac: f64,
                     CompartmentId::EXTRACELLULAR,
                 );
                 model.mets.push(met);
-                model.mets.len() - 1
+                let i = model.mets.len() - 1;
+                met_idx_cache.insert(met_id.clone(), i);
+                i
             }
         };
 
