@@ -136,6 +136,10 @@ gapsmith --data-dir path/to/dat fill output/*-draft.gmod.cbor -n output/*-medium
 | `fba` | FBA / pFBA on an existing model |
 | `adapt` | Add/remove reactions or force growth on compounds |
 | `pan` | Build a pan-draft model from multiple drafts |
+| `batch-align` | Cluster N genomes + single alignment + per-genome TSVs |
+| `doall-batch` | Run `doall` across many genomes in parallel (rayon + SLURM-array `--shard`) |
+| `community per-mag` | Per-MAG FBA under a shared (union) medium — scales to 1000+ MAGs |
+| `community cfba` | Compose N drafts into one community model; weighted-sum biomass |
 | `update-sequences` | Sync reference sequence database from Zenodo |
 | `update-data` | Fetch the large public reference tables (SEED, MNXref) |
 | `convert` | Convert between CBOR and JSON model formats |
@@ -154,6 +158,7 @@ Local copies:
 |----------|----------|
 | [User guide](docs/user-guide.md) | Install, quick-start, per-subcommand recipes, troubleshooting |
 | [CLI reference](docs/cli-reference.md) | Every flag of every subcommand |
+| [Multi-genome & metagenome workflows](docs/multi-genome.md) | gspa integration, `doall-batch` for 1k–1M genomes, community `per-mag` vs `cfba` |
 | [Architecture](docs/architecture.md) | Crate dependency graph, data flow, LP plumbing |
 | [Feature matrix](docs/feature-matrix.md) | R source → Rust module mapping, status per feature |
 | [Porting notes](docs/porting-notes.md) | Intentional deviations from upstream gapseq |

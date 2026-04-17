@@ -102,10 +102,18 @@ pub enum Cmd {
     Medium(commands::medium::Args),
     /// Chain find → find-transport → draft → medium → fill end-to-end.
     Doall(commands::doall::Args),
+    /// Run `doall` across many genomes in parallel, with optional
+    /// `--shard i/N` for SLURM array jobs and `--gspa-run` to reuse a
+    /// cross-genome mmseqs2 cluster from gspa.
+    #[command(name = "doall-batch")]
+    DoallBatch(commands::doall_batch::Args),
     /// Add / remove reactions or force growth on an existing model.
     Adapt(commands::adapt::Args),
     /// Build a pan-draft model from N drafts.
     Pan(commands::pan::Args),
+    /// Community-level optimisation: `per-mag` (shared medium, per-MAG
+    /// FBA) or `cfba` (composed model, weighted-sum biomass).
+    Community(commands::community::Args),
     /// Sync the reference sequence database from Zenodo.
     #[command(name = "update-sequences")]
     UpdateSequences(commands::update_sequences::Args),
@@ -164,8 +172,14 @@ fn main() -> anyhow::Result<()> {
             cli.data_dir.as_deref(),
             cli.seq_dir.as_deref(),
         ),
+        Cmd::DoallBatch(args) => commands::doall_batch::run(
+            args,
+            cli.data_dir.as_deref(),
+            cli.seq_dir.as_deref(),
+        ),
         Cmd::Adapt(args) => commands::adapt::run_cli(args, cli.data_dir.as_deref()),
         Cmd::Pan(args) => commands::pan::run_cli(args),
+        Cmd::Community(args) => commands::community::run(args),
         Cmd::UpdateSequences(args) => commands::update_sequences::run_cli(
             args,
             cli.data_dir.as_deref(),
@@ -197,8 +211,10 @@ fn subcommand_label(c: &Cmd) -> &'static str {
         Cmd::Fill(_) => "fill",
         Cmd::Medium(_) => "medium",
         Cmd::Doall(_) => "doall",
+        Cmd::DoallBatch(_) => "doall-batch",
         Cmd::Adapt(_) => "adapt",
         Cmd::Pan(_) => "pan",
+        Cmd::Community(_) => "community",
         Cmd::UpdateSequences(_) => "update-sequences",
         Cmd::UpdateData(_) => "update-data",
     }

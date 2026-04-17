@@ -6,7 +6,8 @@
 
 use clap::{Parser, ValueEnum};
 use gapsmith_align::{
-    AlignOpts, Aligner, BlastpAligner, DiamondAligner, Mmseqs2Aligner, PrecomputedTsvAligner,
+    AlignOpts, Aligner, BlastpAligner, DiamondAligner, GspaRunAligner, Mmseqs2Aligner,
+    PrecomputedTsvAligner,
 };
 use gapsmith_db::{load_seed_metabolites, subex};
 use gapsmith_io::{resolve_data_dir, resolve_seq_dir};
@@ -23,6 +24,21 @@ pub struct Args {
 
     #[arg(long, short = 'P')]
     pub precomputed: Option<PathBuf>,
+
+    /// Optional gspa run directory (see `docs/multi-genome.md`). Skips
+    /// alignment; expands rep-level hits onto this genome's members.
+    #[arg(long, conflicts_with = "precomputed")]
+    pub gspa_run: Option<PathBuf>,
+
+    /// Genome id matching a row in the gspa manifest's `genomes.tsv`.
+    /// Defaults to the FASTA's file stem.
+    #[arg(long)]
+    pub gspa_genome_id: Option<String>,
+
+    /// Treat the gspa alignment TSV's coverage column as a 0–1 fraction
+    /// (mmseqs2 native). Default is 0–100 (diamond/blastp).
+    #[arg(long)]
+    pub gspa_coverage_fraction: bool,
 
     #[arg(long, short = 'b', default_value_t = 50.0)]
     pub bitcutoff: f32,
@@ -85,15 +101,35 @@ pub fn run_cli(
         seed_cpds.iter().map(|c| (c.id.as_str().to_string(), c.name.clone())).collect();
 
     // Aligner.
-    let aligner: Box<dyn Aligner> = match args.aligner {
-        AlignerArg::Blastp => Box::new(BlastpAligner::new()),
-        AlignerArg::Diamond => Box::new(DiamondAligner::new()),
-        AlignerArg::Mmseqs2 => Box::new(Mmseqs2Aligner::new()),
-        AlignerArg::Precomputed => {
-            let p = args.precomputed.clone().ok_or_else(|| {
-                anyhow::anyhow!("--precomputed required when --aligner precomputed")
-            })?;
-            Box::new(PrecomputedTsvAligner::new_percentage(p))
+    let aligner: Box<dyn Aligner> = if let Some(gspa_root) = &args.gspa_run {
+        let gid = match &args.gspa_genome_id {
+            Some(s) if !s.is_empty() => s.clone(),
+            _ => args
+                .genome
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(|s| {
+                    s.trim_end_matches(".faa")
+                        .trim_end_matches(".fasta")
+                        .to_string()
+                })
+                .unwrap_or_default(),
+        };
+        if gid.is_empty() {
+            anyhow::bail!("--gspa-run requires --gspa-genome-id (or a genome FASTA with a usable file stem)");
+        }
+        Box::new(GspaRunAligner::new(gspa_root, gid, args.gspa_coverage_fraction)?)
+    } else {
+        match args.aligner {
+            AlignerArg::Blastp => Box::new(BlastpAligner::new()),
+            AlignerArg::Diamond => Box::new(DiamondAligner::new()),
+            AlignerArg::Mmseqs2 => Box::new(Mmseqs2Aligner::new()),
+            AlignerArg::Precomputed => {
+                let p = args.precomputed.clone().ok_or_else(|| {
+                    anyhow::anyhow!("--precomputed required when --aligner precomputed")
+                })?;
+                Box::new(PrecomputedTsvAligner::new_percentage(p))
+            }
         }
     };
     let align_opts = AlignOpts {

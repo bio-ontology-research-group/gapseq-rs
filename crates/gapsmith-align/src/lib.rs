@@ -62,12 +62,14 @@ pub mod batch;
 pub mod blast;
 pub mod diamond;
 pub mod error;
+pub mod gspa;
 pub mod hit;
 pub mod mmseqs2;
 pub mod precomputed;
 pub mod tsv;
 
 pub use batch::{BatchClusterAligner, ClusterResult, GenomeHitSet, GenomeInput};
+pub use gspa::{GenomeRow, GspaManifest, GspaRunAligner};
 
 // Re-exported for external parity tests that need to reuse the TSV parser.
 // Not part of the stable public API; prefer the per-backend aligners.

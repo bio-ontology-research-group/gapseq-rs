@@ -37,6 +37,8 @@ End-to-end pipeline: find → find-transport → draft → medium → fill.
 | `-K, --threads` | all cores | Thread count. |
 | `--full-suite` | off | Include fill Steps 3 + 4 (slow). |
 | `-k, --min-growth` | `0.01` | Minimum growth for gap-filling. |
+| `--gspa-run <DIR>` | — | Read precomputed cluster-rep hits from a [gspa](multi-genome.md) manifest instead of running the aligner. |
+| `--gspa-genome-id <ID>` | FASTA stem | Row id in the manifest's `genomes.tsv` matching this run. |
 
 Gzipped inputs are auto-decompressed into a `tempfile::tempdir`.
 
@@ -54,6 +56,9 @@ Pathway and reaction detection.
 | `-t, --taxonomy` | `Bacteria` | Reference subfolder under `seq-dir`. |
 | `-A, --aligner` | `diamond` | Aligner backend. |
 | `-P, --precomputed` | — | Precomputed alignment TSV (skip aligner). |
+| `--gspa-run <DIR>` | — | [gspa](multi-genome.md) manifest — expands rep-level hits onto this genome's cluster members. |
+| `--gspa-genome-id <ID>` | FASTA stem | Genome id in the manifest matching this invocation. |
+| `--gspa-coverage-fraction` | off | Treat the alignment TSV's qcov as 0–1 (mmseqs2 native). |
 | `-b, --bitcutoff` | `200.0` | Bitscore cutoff. |
 | `-i, --identcutoff` | `0.0` | Identity cutoff (%). |
 | `-c, --coverage` | `75` | Coverage cutoff. |
@@ -256,6 +261,57 @@ Cluster N genomes + single alignment + per-genome TSV expansion.
 | `--cluster-coverage` | `0.8` | mmseqs2 cluster coverage. |
 | `-b, --bitcutoff` | `0.0` | Per-hit bitscore filter. |
 | `-c, --coverage` | `0` | Per-hit coverage filter. |
+
+---
+
+## `gapsmith doall-batch`
+
+Run `doall` across many genomes in parallel. See
+[multi-genome.md](multi-genome.md) for the full recipe.
+
+| Flag | Default | Description |
+|---|---|---|
+| `-g, --genomes-dir <DIR>` | — | Directory of protein FASTAs. |
+| `--genomes-list <TSV>` | — | Explicit TSV list (`id<TAB>path[<TAB>abundance]`). |
+| `--gspa-run <DIR>` | — | Pulls the genome list from a gspa manifest. |
+| `-f, --out-dir <DIR>` | required | One `<genome_id>/` subdir is written per input. |
+| `-j, --jobs <N>` | all cores | Rayon pool size. |
+| `--shard <i/N>` | — | Select genomes where `index mod N == i`. |
+| `--continue-on-error` | off | Log failed genomes to `doall-batch-errors.tsv` instead of aborting. |
+| *(plus every passthrough flag from `doall`)* | | |
+
+---
+
+## `gapsmith community`
+
+Community-level optimisation. Two subcommands.
+
+### `gapsmith community per-mag`
+
+Per-MAG FBA under a shared (union) medium. Linear in N.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--drafts-dir <DIR>` | — | Directory of `<id>-{draft,filled}.gmod.cbor`. |
+| `--drafts-list <TSV>` | — | `<id><TAB><cbor>[<TAB><medium>]`. |
+| `--gspa-run <DIR>` | — | Use manifest's genome list. |
+| `--drafts-root <DIR>` | `.` | Where per-genome `doall` outputs live (paired with `--gspa-run`). |
+| `-m, --medium <CSV>` | auto | Override the inferred shared medium. |
+| `-o, --out-dir <DIR>` | `.` | Writes `community-medium.csv`, `per-mag-growth.tsv`. |
+
+### `gapsmith community cfba`
+
+Compose N drafts into one community model; solve weighted-sum biomass.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--drafts-dir <DIR>` / `--drafts-list <TSV>` / `--gspa-run <DIR>` | — | Exactly one (same semantics as `per-mag`). |
+| `--drafts-root <DIR>` | `.` | Where `doall` outputs live. |
+| `--abundance <TSV>` | — | `<id><TAB><abundance>` overrides. |
+| `--biomass-rxn <ID>` | `bio1` | Per-organism biomass reaction id. |
+| `--balanced-growth` | off | Add `v(bio_k) == v(bio_community)` constraints. |
+| `-m, --medium <CSV>` | — | Optional shared medium CSV. |
+| `-o, --out-dir <DIR>` | `.` | Writes `community.gmod.cbor`, `community-fba.tsv`. |
 
 ---
 

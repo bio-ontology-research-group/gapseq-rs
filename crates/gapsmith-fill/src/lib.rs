@@ -38,6 +38,7 @@
 //! dependency. Build with `--features cbc` to enable a CBC fallback
 //! triggered when `pfba_heuristic`'s tolerance ladder exhausts itself.
 
+pub mod community;
 pub mod error;
 pub mod fba;
 pub mod futile;
@@ -61,3 +62,7 @@ pub use pool::{
 };
 pub use futile::{detect_futile_cycles, FutileOptions};
 pub use suite::{run_suite, SuiteOptions, SuiteReport};
+pub use community::{
+    add_community_biomass, compose_models, per_mag_weights, union_medium, weighted_growth,
+    ComposedCommunity, CommunityError, Organism,
+};

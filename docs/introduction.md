@@ -50,10 +50,30 @@ Benchmarks show **~3× faster** pathway detection on real bacterial
 proteomes and 35–40% lower peak memory. See
 [Comparison with upstream gapseq](comparison.md) for details.
 
+## Scaling out: metagenomes and multi-genome runs
+
+gapsmith also ships **optional, additive** features for community and
+multi-genome workloads:
+
+- **`--gspa-run`** — consume protein clusters + alignments produced
+  upstream by [gspa](https://github.com/bio-ontology-research-group/gspa)
+  so thousands of genomes share one alignment.
+- **`doall-batch`** — rayon-parallel driver with a `--shard i/N`
+  selector for SLURM array jobs (scales from one machine to 1 M genomes).
+- **`community per-mag`** — per-MAG FBA under a shared (union) medium.
+  Linear in N MAGs.
+- **`community cfba`** — compose N drafts into one community model with
+  a shared `_e0` pool and a weighted-sum biomass objective; optional
+  balanced-growth constraint for classical cFBA semantics.
+
+See [Multi-genome & metagenome workflows](multi-genome.md) for the full
+recipe.
+
 ## Where to start
 
 - **Install & first run**: [User guide](user-guide.md)
 - **Every CLI flag**: [CLI reference](cli-reference.md)
+- **Metagenomes / multi-genome runs**: [Multi-genome workflows](multi-genome.md)
 - **How the crates fit together**: [Architecture](architecture.md)
 - **R → Rust module mapping**: [Feature matrix](feature-matrix.md)
 - **Intentional deviations from upstream**: [Porting notes](porting-notes.md)

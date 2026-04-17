@@ -6,9 +6,11 @@
 pub mod adapt;
 pub mod align;
 pub mod batch_align;
+pub mod community;
 pub mod convert;
 pub mod db;
 pub mod doall;
+pub mod doall_batch;
 pub mod draft;
 pub mod example_model;
 pub mod export_sbml;

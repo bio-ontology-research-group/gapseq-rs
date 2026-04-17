@@ -32,6 +32,9 @@ Status legend:
 | `gapsmith export-sbml` | `cobrar::writeSBMLmod` | `gapsmith-cli/src/commands/export_sbml.rs` | 🆕 CBOR → SBML |
 | `gapsmith align` | — | `gapsmith-cli/src/commands/align.rs` | 🆕 debug-wrap for a single aligner |
 | `gapsmith batch-align` | — | `gapsmith-cli/src/commands/batch_align.rs` | 🆕 cluster N genomes + single alignment |
+| `gapsmith doall-batch` | — | `gapsmith-cli/src/commands/doall_batch.rs` | 🆕 rayon + SLURM-shard parallel `doall` across N genomes |
+| `gapsmith community per-mag` | — | `gapsmith-cli/src/commands/community.rs` | 🆕 per-MAG FBA under a shared (union) medium |
+| `gapsmith community cfba` | — | `gapsmith-cli/src/commands/community.rs` | 🆕 compose N drafts, weighted-sum biomass objective |
 | `gapsmith fba` | — | `gapsmith-cli/src/commands/fba.rs` | 🆕 FBA / pFBA standalone |
 
 ---
@@ -48,6 +51,7 @@ Status legend:
 | mmseqs2 wrapper (full pipeline) | `gapseq_find.sh` mmseqs block | `mmseqs2.rs::Mmseqs2Aligner` |
 | Precomputed TSV input | — | `precomputed.rs::PrecomputedTsvAligner` 🆕 |
 | Batch-cluster (N genomes → 1 alignment) | — | `batch.rs::BatchClusterAligner` 🆕 |
+| gspa-run manifest reader (cluster-aware hit expansion) | — | `gspa.rs::{GspaManifest, GspaRunAligner}` 🆕 |
 | 2-decimal scientific e-value format | BLAST `-outfmt 6` native | `tsv.rs` |
 
 ### 2.2 `find` pipeline (`gapsmith-find`)
@@ -120,6 +124,9 @@ Status legend:
 | Step 4 (fermentation-product screen) | `gf.suite.R:585-683` | `suite.rs::step4` |
 | Target-met sink as objective | `add_met_sink` in `add_missing_exRxns.R:56-72` | `suite.rs::add_target_sink_obj` |
 | Futile-cycle detector (parallel pairwise LP probe) | recent upstream `cccbb6f0` | `futile.rs::detect_futile_cycles` (opt-in `--prune-futile`) |
+| Community model composition (block-diagonal, shared `_e0`) | — | `community.rs::compose_models` 🆕 |
+| Weighted-sum community biomass + optional balanced-growth | — | `community.rs::add_community_biomass` 🆕 |
+| Union-medium + per-MAG weights (community `per-mag` mode) | — | `community.rs::{union_medium, per_mag_weights, weighted_growth}` 🆕 |
 
 ### 2.7 Medium inference (`gapsmith-medium`)
 
@@ -168,6 +175,10 @@ Status legend:
 |---|---|---|
 | Precomputed alignment input (`--aligner precomputed -P <tsv>`) | `gapsmith-align::PrecomputedTsvAligner` | Skip per-genome BLAST when the user pre-runs diamond / mmseqs2 at batch scale |
 | BatchClusterAligner (`gapsmith batch-align`) | `gapsmith-align::BatchClusterAligner` | Amortise alignment cost over N genomes via one mmseqs2 cluster + single alignment |
+| gspa-run manifest reader (`--gspa-run <dir>`) | `gapsmith-align::GspaRunAligner` | Consume precomputed cluster-rep hits from the upstream [gspa](https://github.com/bio-ontology-research-group/gspa) pipeline; fans rep hits onto per-genome members |
+| `gapsmith doall-batch` | `gapsmith-cli::commands::doall_batch` | Rayon + SLURM-array-friendly driver for reconstructing 100 → 1 M genomes in one batch |
+| `gapsmith community per-mag` | `gapsmith-fill::community` + CLI | Shared-medium per-MAG FBA for metagenomes with 50+ MAGs |
+| `gapsmith community cfba` | `gapsmith-fill::community` + CLI | Full community LP (block-diagonal compose, weighted-sum biomass, optional balanced-growth) |
 | In-process LP (HiGHS via good_lp) | `gapsmith-fill` | Replaces R cobrar's shelled-out glpk / cplex; faster warm-starts |
 | Optional CBC fallback backend | `gapsmith-fill::pfba_cbc` (`--features cbc`) | When HiGHS exhausts the tolerance ladder on pathological LPs |
 | CBOR native format | `gapsmith-io` | Fast, compact, stdlib-free; replaces R's RDS |
@@ -203,14 +214,14 @@ Status legend:
 | `gapsmith-io` unit | 5 | CBOR / JSON round-trip, data-dir auto-detect. |
 | `gapsmith-db` unit | 18 | Every reference-data parser on realistic inputs. |
 | `gapsmith-sbml` unit + integration | 2 + 1 | SBML writer emits every FBC2 / groups element; libSBML validates cleanly. |
-| `gapsmith-align` unit + smoke + parity | 14 + 4 + 3 | Aligner trait, precomputed TSV, BLAST / diamond / mmseqs2 shell parity. |
+| `gapsmith-align` unit + smoke + parity | 18 + 4 + 3 | Aligner trait, precomputed TSV, gspa-run manifest + fan-out, BLAST / diamond / mmseqs2 shell parity. |
 | `gapsmith-find` unit + smoke + parity | 36 + 1 + 2 | Pathway scoring, complex detection (R-parity on 9 cases), `find -p PWY-6587` and `-p amino` byte-identical against real gapseq. |
 | `gapsmith-transport` unit + parity | 7 + 1 | TC parsing, substrate resolution, end-to-end row+TC-id parity against real gapseq. |
 | `gapsmith-draft` unit + smoke | 10 + 1 | Biomass rescaling, GPR composition, stoich dedup, conditional transporters. |
-| `gapsmith-fill` unit + textbook + smoke | 13 + 5 + 1 | FBA / pFBA / pFBA-heuristic on toys; `gapfill4` end-to-end on ecoli draft. |
+| `gapsmith-fill` unit + textbook + smoke | 20 + 5 + 1 | FBA / pFBA / pFBA-heuristic on toys; community compose + cFBA on 2-organism toy; `gapfill4` end-to-end on ecoli draft. |
 | `gapsmith-medium` unit | 14 | Boolean-expression evaluator (incl. counting rules), rule loader, cross-rule dedup, proton balance. |
-| `gapsmith-cli` integration | 4 + 1 | CBOR↔JSON round-trip end-to-end via the binary. |
-| **Total** | **160** | |
+| `gapsmith-cli` integration | 6 + 1 | CBOR↔JSON round-trip end-to-end via the binary; SLURM-shard parser. |
+| **Total** | **~170** | |
 
 Run the full suite:
 

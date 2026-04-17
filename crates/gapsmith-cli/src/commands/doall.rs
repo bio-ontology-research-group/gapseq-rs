@@ -79,6 +79,18 @@ pub struct Args {
     /// Minimum growth rate for gap-filling.
     #[arg(long, short = 'k', default_value_t = 0.01)]
     pub min_growth: f64,
+
+    /// Optional path to a gspa run directory. When set, the find /
+    /// find-transport stages skip the aligner entirely and consume
+    /// gspa's precomputed cluster-rep hits, fanning them onto this
+    /// genome's members. See `docs/multi-genome.md`.
+    #[arg(long)]
+    pub gspa_run: Option<PathBuf>,
+
+    /// Genome id inside the gspa manifest (`genomes.tsv`) matching this
+    /// FASTA. Defaults to the FASTA stem when omitted.
+    #[arg(long)]
+    pub gspa_genome_id: Option<String>,
 }
 
 pub fn run_cli(
@@ -126,6 +138,9 @@ pub fn run_cli(
         taxonomy: taxonomy.clone(),
         aligner: args.aligner,
         precomputed: None,
+        gspa_run: args.gspa_run.clone(),
+        gspa_genome_id: args.gspa_genome_id.clone(),
+        gspa_coverage_fraction: false,
         bitcutoff: args.bitcutoff,
         identcutoff: 0.0,
         ident_exception: 70.0,
@@ -155,6 +170,9 @@ pub fn run_cli(
         genome: genome.clone(),
         aligner: tr_aligner,
         precomputed: None,
+        gspa_run: args.gspa_run.clone(),
+        gspa_genome_id: args.gspa_genome_id.clone(),
+        gspa_coverage_fraction: false,
         bitcutoff: 50.0,
         identcutoff: 0.0,
         coverage: args.coverage,

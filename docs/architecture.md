@@ -180,6 +180,12 @@ send).
 - [`BatchClusterAligner`] is the Rust-only feature: mmseqs2-clusters
   N input genomes, runs one alignment, expands cluster membership
   back to per-genome hits.
+- [`GspaRunAligner`] is the multi-genome / metagenome entry point:
+  given a [gspa](multi-genome.md#1-consuming-a-gspa-manifest---gspa-run)
+  manifest (`clusters.tsv` + `alignment/*.tsv` + `genomes.tsv`) and a
+  target genome id, it fans every rep-level hit onto that genome's
+  cluster members. No alignment is re-run — gspa clustered across N
+  genomes once, upstream.
 
 ---
 
@@ -239,9 +245,87 @@ computation in the pipeline. Sketch of one fill call:
 
 ---
 
+## 6b. Multi-genome and community paths
+
+The single-genome flow above is unchanged. Three additional, opt-in
+paths sit alongside it.
+
+### 6b.1 Alignment reuse via gspa
+
+```
+   N proteomes ───▶  [gspa, upstream]  ──▶  gspa-run directory
+                     (mmseqs2 linclust,      clusters.tsv
+                      diamond vs. ref)       alignment/*.tsv
+                                             genomes.tsv
+                           │
+     ┌─────────────────────┼─────────────────────┐
+     ▼                     ▼                     ▼
+  gapsmith find         find-transport         doall-batch
+   --gspa-run …          --gspa-run …           --gspa-run …
+     │                     │                     │
+     └─ reads clusters.tsv + alignment/*.tsv, expands rep
+        hits onto each target genome's cluster members
+        (gapsmith_align::GspaRunAligner).
+```
+
+No alignment is run inside gapsmith when `--gspa-run` is set. Per-genome
+`find` still applies its bitscore / coverage / completeness gates on the
+fanned-out hits, so the downstream pipeline is unchanged.
+
+### 6b.2 `doall-batch` parallel driver
+
+```
+   genomes.tsv  ──▶ sort + shard (`--shard i/N`) ──▶ rayon pool
+                                                       │
+                                                       ├─▶ doall genome_1
+                                                       ├─▶ doall genome_2
+                                                       ├─▶ ...
+                                                       └─▶ doall genome_k
+   out-dir/
+     <genome_1>/
+     <genome_2>/
+     ...
+     doall-batch-errors.tsv  ← present only with --continue-on-error
+```
+
+Each worker calls `doall::run_cli` in-process with its `--threads`
+pinned to 1 so rayon owns the parallelism. SLURM array tasks get a
+disjoint `--shard i/N` — no inter-task coordination, no shared state.
+
+### 6b.3 Community modes
+
+```
+   N drafts (gmod.cbor) ──┐
+                          │
+              ┌───────────┴───────────┐
+              ▼                       ▼
+   community per-mag           community cfba
+   (gapsmith-fill::             (gapsmith-fill::
+    community::                  community::
+     union_medium,                compose_models,
+     per_mag_weights)             add_community_biomass)
+              │                       │
+              ▼                       ▼
+   per-mag-growth.tsv +        community.gmod.cbor +
+   community-medium.csv        community-fba.tsv
+   (N independent FBAs)        (1 big LP across the
+                                block-diagonal model)
+```
+
+`compose_models` suffixes every private metabolite and reaction with
+`__<organism>`, leaves extracellular (`_e0`) ids **un**suffixed so they
+collapse into one shared pool, and takes the most permissive
+`EX_*_e0` bounds across organisms. `add_community_biomass` appends a
+`community_biomass` pseudo-metabolite plus a draining `bio_community`
+reaction (`Σ w_k · bio_k`), optionally adding one equality per organism
+(`v(bio_k) == v(bio_community)`) for balanced-growth cFBA. The regular
+[`fba::fba`] solves the resulting LP with no solver-side changes.
+
+---
+
 ## 7. Testing surface
 
-Every algorithmic component has unit tests (160 total, `cargo test
+Every algorithmic component has unit tests (~170 total, `cargo test
 --workspace`). On top, three integration layers:
 
 1. **Shell-parity tests** (`crates/gapsmith-align/tests/*_parity.rs`)
@@ -265,12 +349,12 @@ gapsmith/
     gapsmith-io/                 # CBOR/JSON + path resolver
     gapsmith-db/                 # dat/*.tsv loaders
     gapsmith-sbml/               # SBML writer
-    gapsmith-align/              # aligner trait + 5 backends
+    gapsmith-align/              # aligner trait + 6 backends (incl. gspa-run)
     gapsmith-find/               # pathway + reaction detection
     gapsmith-transport/          # transporter detection
     gapsmith-draft/              # draft model builder
     gapsmith-medium/             # rule-based medium inference
-    gapsmith-fill/               # FBA / pFBA / gap-filler / suite
+    gapsmith-fill/               # FBA / pFBA / gap-filler / suite / community
     gapsmith-cli/                # clap dispatch + every subcommand
   tools/
     bench/                     # R-vs-rs benchmark runner
@@ -280,6 +364,7 @@ gapsmith/
   docs/
     user-guide.md              # end-user walk-through
     cli-reference.md           # exhaustive flag list
+    multi-genome.md            # metagenome, gspa integration, cFBA
     feature-matrix.md          # R source → Rust module pointers
     porting-notes.md           # intentional deviations from upstream
     architecture.md            # this file

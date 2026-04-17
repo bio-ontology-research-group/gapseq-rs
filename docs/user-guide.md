@@ -342,6 +342,74 @@ when the proteomes share a lot of sequence homology.
 
 ---
 
+## 4b. Multi-genome, metagenome, and gspa integration
+
+When annotating 100+ genomes — or when the input is a metagenome —
+reach for these additional subcommands instead of looping `doall`:
+
+### `--gspa-run` — consume precomputed clusters from gspa
+
+If you have a [gspa](https://github.com/bio-ontology-research-group/gspa)
+run directory (mmseqs2-clustered proteins + alignment against cluster
+reps), point any per-genome subcommand at it:
+
+```bash
+gapsmith doall genome.faa -f out/ \
+    --gspa-run /path/to/gspa-run/ \
+    --gspa-genome-id my-genome
+```
+
+gapsmith skips the aligner entirely, reads the rep-level hits, and fans
+them out to this genome's cluster members.
+
+### `gapsmith doall-batch` — parallel N-genome driver
+
+```bash
+# 100 genomes on one machine, reusing a gspa cluster, 32 rayon workers
+gapsmith doall-batch --gspa-run gspa-run/ -f out/ --jobs 32
+
+# 1 M genomes on SLURM: 1024 array tasks, each processes ~1000 genomes
+sbatch --array=0-1023 slurm_script.sh   # script passes --shard ${SLURM_ARRAY_TASK_ID}/1024
+```
+
+Key flags: `--genomes-dir` / `--genomes-list` / `--gspa-run`, `--jobs`,
+`--shard i/N`, `--continue-on-error`.
+
+### `gapsmith community per-mag` — shared-medium per-MAG FBA
+
+For metagenomes with 50+ MAGs where a full cFBA isn't tractable:
+
+```bash
+gapsmith community per-mag \
+    --gspa-run gspa-run/ \
+    --drafts-root out/ \
+    -o community/
+```
+
+Outputs `community-medium.csv` (union of per-MAG media) and
+`per-mag-growth.tsv` with abundance-weighted community growth.
+
+### `gapsmith community cfba` — full community LP
+
+For small, curated communities (≤ ~50 organisms) where cross-feeding
+matters:
+
+```bash
+gapsmith community cfba \
+    --drafts-dir out/drafts/ \
+    --abundance abundances.tsv \
+    --balanced-growth \
+    -o community/
+```
+
+Composes N drafts into one block-diagonal model with a shared `_e0`
+extracellular pool, builds a weighted-sum biomass objective, and
+optionally constrains every organism to the community's growth rate.
+
+→ Full recipe: [Multi-genome & metagenome workflows](multi-genome.md).
+
+---
+
 ## 5. Solver, format, and file-layout notes
 
 ### 5.1 Model format
@@ -437,6 +505,11 @@ asked about. Verify `<seq-dir>/<Taxonomy>/` is populated
   medium) too.
 - Batch mode: if you're annotating 10+ genomes, `gapsmith batch-align`
   + `--aligner precomputed` amortises the alignment cost.
+- Multi-genome scale-out: for 100+ genomes or 1k+ metagenomes, use
+  `gapsmith doall-batch` with `--gspa-run` so the expensive alignment
+  is done exactly once across the whole collection. Shard across SLURM
+  array tasks with `--shard i/N`. See
+  [Multi-genome workflows](multi-genome.md).
 
 ---
 

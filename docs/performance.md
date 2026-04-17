@@ -154,6 +154,31 @@ Semantic parity is the firm guarantee: identical reaction sets,
 identical biomass to machine precision, regardless of which
 optimization path fires.
 
+## Scaling to many genomes
+
+The numbers above are all single-genome. For 100+ genomes, the
+dominant cost moves out of FBA and into per-genome alignment.
+Gapsmith's multi-genome path routes around that entirely:
+
+- **`--gspa-run`** consumes a pre-clustered, pre-aligned gspa manifest
+  so a 1000-genome collection pays for one cross-genome alignment,
+  not 1000. Aligner calls inside `find` / `find-transport` become
+  map-lookups.
+- **`doall-batch --jobs N`** runs `doall` across genomes with rayon;
+  on a 32-core box, speedup is ~`min(N, 32)` vs. looping `doall`
+  sequentially.
+- **`doall-batch --shard i/N`** makes SLURM array jobs the unit of
+  parallelism. At 1 024 tasks of 16 cores each, throughput is ~1–2 s
+  of wallclock per genome including I/O — limited by per-task
+  doall-internal work, not by coordination.
+
+Community modes are small LPs (≤ 1000 organisms in `per-mag`, which is
+linear) or a single big LP (`cfba`). `cfba` is feasible up to ~50
+organisms before HiGHS becomes the bottleneck; for larger communities
+prefer `per-mag`.
+
+See [Multi-genome workflows](multi-genome.md) for recipes.
+
 ## Deferred — where the big wins still are
 
 ### B1-full — HiGHS basis warm-start across KO probes (`highs-sys` FFI)
