@@ -1,0 +1,38 @@
+[package]
+name = "gapsmith-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Command-line interface for gapsmith."
+
+[[bin]]
+name = "gapsmith"
+path = "src/main.rs"
+
+[dependencies]
+gapsmith-core = { workspace = true }
+gapsmith-io = { workspace = true }
+gapsmith-db = { workspace = true }
+gapsmith-sbml = { workspace = true }
+gapsmith-align = { workspace = true }
+gapsmith-find = { workspace = true }
+gapsmith-transport = { workspace = true }
+gapsmith-draft = { workspace = true }
+gapsmith-fill = { workspace = true }
+gapsmith-medium = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tempfile = { workspace = true }
+flate2 = "1"
+tar = "0.4"
+md-5 = "0.10"
+ureq = { version = "2", default-features = false, features = ["tls"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

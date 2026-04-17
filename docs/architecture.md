@@ -1,6 +1,6 @@
 # Architecture
 
-A bird's-eye view of how gapseq-rs is organised, how data flows through
+A bird's-eye view of how gapsmith is organised, how data flows through
 it, and what each crate is responsible for.
 
 ---
@@ -8,69 +8,69 @@ it, and what each crate is responsible for.
 ## 1. Crate dependency graph
 
 ```
-             gapseq-core            ← Types only, no I/O / DB / solver
+             gapsmith-core            ← Types only, no I/O / DB / solver
               ↑  ↑  ↑
               │  │  │
     ┌─────────┘  │  └────────────────┐
     │            │                   │
-  gapseq-io   gapseq-db           gapseq-sbml
+  gapsmith-io   gapsmith-db           gapsmith-sbml
     │            │                   ↑
     └─┬──────────┘                   │
       │                              │
       ▼                              │
-  gapseq-align ──┐                   │
+  gapsmith-align ──┐                   │
       │          │                   │
       ▼          │                   │
-  gapseq-find    │                   │
+  gapsmith-find    │                   │
       │          │                   │
-      ├─▶ gapseq-transport           │
+      ├─▶ gapsmith-transport           │
       │                              │
       ▼                              │
-  gapseq-draft ──────────────────────┤
+  gapsmith-draft ──────────────────────┤
       │                              │
       ▼                              │
-  gapseq-fill ◀─── gapseq-medium    │
+  gapsmith-fill ◀─── gapsmith-medium    │
       │                              │
-      └──────────────▶ gapseq-cli ◀──┘
+      └──────────────▶ gapsmith-cli ◀──┘
 ```
 
-Arrows point from "depended on" toward "depends on". `gapseq-core` is
+Arrows point from "depended on" toward "depends on". `gapsmith-core` is
 the leaf: every other crate builds on its `Model` / `Reaction` /
 `Metabolite` / `StoichMatrix` types.
 
 ---
 
-## 2. Data flow for `gapseq doall`
+## 2. Data flow for `gapsmith doall`
 
 ```text
   genome.faa.gz
         │
         ▼
   ┌──────────────┐                      ┌──────────────────────┐
-  │ gapseq find  │ ──── aligner (shell) │  dat/seq/<tax>/      │
+  │ gapsmith find  │ ──── aligner (shell) │  dat/seq/<tax>/      │
   │ -p all       │          ─ BLAST/    │  rev/ unrev/ rxn/    │
   └──────┬───────┘            diamond/  └──────────────────────┘
          │                    mmseqs2
          │   *-Reactions.tbl  + *-Pathways.tbl
          ▼
   ┌──────────────────────┐
-  │ gapseq find-transport│ ─── same aligner, subex.tbl + tcdb.fasta
+  │ gapsmith find-transport│ ─── same aligner, subex.tbl + tcdb.fasta
   └──────┬───────────────┘
          │   *-Transporter.tbl
          ▼
   ┌────────────────────┐
-  │ gapseq draft       │ ─── seed_reactions_corrected.tsv, biomass JSON
+  │ gapsmith draft       │ ─── seed_reactions_corrected.tsv, biomass JSON
   └──────┬─────────────┘
          │   *-draft.gmod.cbor  (CBOR) + *-draft.xml  (SBML)
          ▼
   ┌──────────────────┐
-  │ gapseq medium    │ ─── medium_prediction_rules.tsv + *-Pathways.tbl
+  │ gapsmith medium    │ ─── medium_prediction_rules.tsv + *-Pathways.tbl
   │ (auto)           │
   └──────┬───────────┘
          │   *-medium.csv
          ▼
   ┌────────────────────┐
-  │ gapseq fill        │ ─── HiGHS LP (in-process via good_lp)
+  │ gapsmith fill        │ ─── HiGHS LP (in-process via good_lp)
   │ 4-phase suite      │
   └──────┬─────────────┘
          │   *-filled.gmod.cbor  +  *-filled.xml  +  *-filled-added.tsv
@@ -86,7 +86,7 @@ you only re-run `fill`.
 
 ## 3. Model representation
 
-[`gapseq_core::Model`] is the single source of truth:
+[`gapsmith_core::Model`] is the single source of truth:
 
 ```rust
 pub struct Model {
@@ -101,12 +101,12 @@ pub struct Model {
 
 Serialised via serde as:
 
-- **CBOR** (`.gmod.cbor`) — native, compact, fast load. The gapseq-rs
+- **CBOR** (`.gmod.cbor`) — native, compact, fast load. The gapsmith
   internal format; replaces upstream's `.RDS`.
-- **JSON** (`.json`) — human-readable; `gapseq convert` converts both
+- **JSON** (`.json`) — human-readable; `gapsmith convert` converts both
   ways. Same semantic content as CBOR.
 - **SBML** (`.xml`) — Level 3 Version 1 + FBC 2 + groups 1. Written by
-  [`gapseq_sbml::write_sbml`]; loads cleanly in COBRApy / COBRAToolbox
+  [`gapsmith_sbml::write_sbml`]; loads cleanly in COBRApy / COBRAToolbox
   / cobrar.
 
 Metabolite ids use the `cpd00001_c0` convention (compartment baked into
@@ -156,7 +156,7 @@ CBC after HiGHS exhausts the tolerance / coefficient ladder.
 
 ## 5. Alignment layer
 
-`gapseq-align` exposes a single [`Aligner`] trait:
+`gapsmith-align` exposes a single [`Aligner`] trait:
 
 ```rust
 pub trait Aligner {
@@ -185,7 +185,7 @@ send).
 
 ## 6. Candidate-pool / gap-fill
 
-The 4-phase gap-fill suite (`gapseq-fill::run_suite`) is the heaviest
+The 4-phase gap-fill suite (`gapsmith-fill::run_suite`) is the heaviest
 computation in the pipeline. Sketch of one fill call:
 
 ```
@@ -244,11 +244,11 @@ computation in the pipeline. Sketch of one fill call:
 Every algorithmic component has unit tests (160 total, `cargo test
 --workspace`). On top, three integration layers:
 
-1. **Shell-parity tests** (`crates/gapseq-align/tests/*_parity.rs`)
+1. **Shell-parity tests** (`crates/gapsmith-align/tests/*_parity.rs`)
    — run the real BLAST / diamond / mmseqs2 binaries and diff against
    our wrappers' output.
-2. **R-parity tests** (`crates/gapseq-find/tests/complex_parity.rs`,
-   `pipeline_parity.rs`, `crates/gapseq-transport/tests/parity.rs`)
+2. **R-parity tests** (`crates/gapsmith-find/tests/complex_parity.rs`,
+   `pipeline_parity.rs`, `crates/gapsmith-transport/tests/parity.rs`)
    — run the actual R gapseq via `Rscript` and diff column-by-column.
 3. **SBML validator** (`tools/validate_sbml.py`) — uv-managed venv
    with `python-libsbml` + `cobra`; runs libSBML consistency checks +
@@ -259,19 +259,19 @@ Every algorithmic component has unit tests (160 total, `cargo test
 ## 8. File-system layout
 
 ```
-gapseq-rs/
+gapsmith/
   crates/
-    gapseq-core/               # types
-    gapseq-io/                 # CBOR/JSON + path resolver
-    gapseq-db/                 # dat/*.tsv loaders
-    gapseq-sbml/               # SBML writer
-    gapseq-align/              # aligner trait + 5 backends
-    gapseq-find/               # pathway + reaction detection
-    gapseq-transport/          # transporter detection
-    gapseq-draft/              # draft model builder
-    gapseq-medium/             # rule-based medium inference
-    gapseq-fill/               # FBA / pFBA / gap-filler / suite
-    gapseq-cli/                # clap dispatch + every subcommand
+    gapsmith-core/               # types
+    gapsmith-io/                 # CBOR/JSON + path resolver
+    gapsmith-db/                 # dat/*.tsv loaders
+    gapsmith-sbml/               # SBML writer
+    gapsmith-align/              # aligner trait + 5 backends
+    gapsmith-find/               # pathway + reaction detection
+    gapsmith-transport/          # transporter detection
+    gapsmith-draft/              # draft model builder
+    gapsmith-medium/             # rule-based medium inference
+    gapsmith-fill/               # FBA / pFBA / gap-filler / suite
+    gapsmith-cli/                # clap dispatch + every subcommand
   tools/
     bench/                     # R-vs-rs benchmark runner
     validate_sbml.py           # libSBML + COBRApy validator

@@ -1,6 +1,6 @@
 # Comparison with upstream gapseq
 
-gapseq-rs is a Rust reimplementation of
+gapsmith is a Rust reimplementation of
 [gapseq](https://github.com/jotech/gapseq) (R/bash, ~9k LOC). This
 document covers performance benchmarks and feature differences.
 
@@ -22,7 +22,7 @@ Wall-clock comparison on four real bacterial proteomes. Hardware:
 
 ### Results
 
-| Genome | Stage | gapseq (R) | gapseq-rs | Speedup |
+| Genome | Stage | gapseq (R) | gapsmith | Speedup |
 |--------|-------|----------:|----------:|--------:|
 | *B. floridanus* (517) | `find -p all` | 117 s | 34 s | **3.5×** |
 | *B. floridanus* (517) | `find-transport` | 9 s | 8 s | **1.2×** |
@@ -33,7 +33,7 @@ Wall-clock comparison on four real bacterial proteomes. Hardware:
 | *S. Typhimurium* (4,554) | `find -p all` | 211 s | 76 s | **2.8×** |
 | *S. Typhimurium* (4,554) | `find-transport` | 27 s | 14 s | **1.9×** |
 
-gapseq-rs also uses 35–40% less peak memory (e.g. 498 MB vs 786 MB for
+gapsmith also uses 35–40% less peak memory (e.g. 498 MB vs 786 MB for
 *E. coli* `find`).
 
 ### Stages without R baseline
@@ -44,7 +44,7 @@ the archived `sybil`) failed to install on the benchmark host due to a
 libsbml/libxml2 ABI conflict in the conda R 4.5 environment. This is a
 packaging issue on the test rig, not a limitation of either tool.
 
-gapseq-rs timings for these stages (*E. coli* K-12):
+gapsmith timings for these stages (*E. coli* K-12):
 
 | Stage | Wall-time | Peak RSS |
 |-------|----------:|---------:|
@@ -52,7 +52,7 @@ gapseq-rs timings for these stages (*E. coli* K-12):
 | `medium` | 0.1 s | 47 MB |
 | `fill` (Steps 1 + 2 + 2b) | 52 s | 103 MB |
 
-These stages are fast in gapseq-rs because the LP solver (HiGHS) runs
+These stages are fast in gapsmith because the LP solver (HiGHS) runs
 in-process via `good_lp`, rather than shelling out through R's `cobrar`
 wrapper to an external GLPK/CPLEX binary.
 
@@ -60,14 +60,14 @@ wrapper to an external GLPK/CPLEX binary.
 
 ```bash
 # Requires: blastp, Rscript (with data.table, stringr, Biostrings),
-# and gapseq-rs binary on PATH.
+# and gapsmith binary on PATH.
 bash tools/bench/run_bench.sh <genomes_dir> <results_dir>
 python3 tools/bench/aggregate.py <results_dir>
 ```
 
 ## Feature comparison
 
-| Feature | gapseq (R) | gapseq-rs |
+| Feature | gapseq (R) | gapsmith |
 |---------|:----------:|:---------:|
 | `find` (pathway detection) | ✅ | ✅ byte-identical output |
 | `find-transport` | ✅ | ✅ row-count parity |
@@ -93,20 +93,20 @@ python3 tools/bench/aggregate.py <results_dir>
 ### Solver
 
 gapseq uses R's `cobrar` package (or the older `sybil`) which wraps
-GLPK or CPLEX. gapseq-rs uses [HiGHS](https://highs.dev/) via
+GLPK or CPLEX. gapsmith uses [HiGHS](https://highs.dev/) via
 [`good_lp`](https://crates.io/crates/good_lp), statically linked at
 build time. No runtime solver dependency.
 
 ### Model format
 
-gapseq stores models as R `.RDS` files. gapseq-rs uses CBOR (`.gmod.cbor`)
+gapseq stores models as R `.RDS` files. gapsmith uses CBOR (`.gmod.cbor`)
 as its native format — compact, fast to load, language-agnostic. Both
 tools emit SBML for interchange.
 
 ### Alignment
 
 Both tools shell out to the same external aligner binaries (blastp,
-diamond, mmseqs2). gapseq-rs additionally supports `--aligner precomputed`
+diamond, mmseqs2). gapsmith additionally supports `--aligner precomputed`
 (skip the aligner, read a user-supplied TSV) and `batch-align` (cluster
 N genomes with mmseqs2, align once, expand per-genome).
 

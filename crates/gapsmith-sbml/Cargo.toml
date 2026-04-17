@@ -1,0 +1,17 @@
+[package]
+name = "gapsmith-sbml"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Streaming SBML L3V1 + FBC2 + groups writer for gapsmith."
+
+[dependencies]
+gapsmith-core = { workspace = true }
+quick-xml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

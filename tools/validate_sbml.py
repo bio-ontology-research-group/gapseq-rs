@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Validate an SBML L3V1+FBC2+groups file emitted by gapseq-sbml.
+"""Validate an SBML L3V1+FBC2+groups file emitted by gapsmith-sbml.
 
-Run under the uv venv at gapseq-rs/tools/.sbml-validate/.
+Run under the uv venv at gapsmith/tools/.sbml-validate/.
 
 Two checks:
 

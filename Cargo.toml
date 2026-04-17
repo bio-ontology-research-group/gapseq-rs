@@ -1,17 +1,17 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/gapseq-core",
-    "crates/gapseq-io",
-    "crates/gapseq-db",
-    "crates/gapseq-sbml",
-    "crates/gapseq-align",
-    "crates/gapseq-find",
-    "crates/gapseq-transport",
-    "crates/gapseq-draft",
-    "crates/gapseq-fill",
-    "crates/gapseq-medium",
-    "crates/gapseq-cli",
+    "crates/gapsmith-core",
+    "crates/gapsmith-io",
+    "crates/gapsmith-db",
+    "crates/gapsmith-sbml",
+    "crates/gapsmith-align",
+    "crates/gapsmith-find",
+    "crates/gapsmith-transport",
+    "crates/gapsmith-draft",
+    "crates/gapsmith-fill",
+    "crates/gapsmith-medium",
+    "crates/gapsmith-cli",
 ]
 
 [workspace.package]
@@ -20,7 +20,7 @@ edition = "2021"
 rust-version = "1.80"
 authors = ["Robert Hoehndorf <robert.hoehndorf@kaust.edu.sa>"]
 license = "GPL-3.0-or-later"
-repository = "https://github.com/bio-ontology-research-group/gapseq-rs"
+repository = "https://github.com/bio-ontology-research-group/gapsmith"
 description = "Rust reimplementation of gapseq — informed prediction and analysis of bacterial metabolic pathways and genome-scale networks"
 
 [workspace.dependencies]
@@ -35,16 +35,16 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Workspace-internal
-gapseq-core = { path = "crates/gapseq-core" }
-gapseq-io   = { path = "crates/gapseq-io" }
-gapseq-db   = { path = "crates/gapseq-db" }
-gapseq-sbml = { path = "crates/gapseq-sbml" }
-gapseq-align = { path = "crates/gapseq-align" }
-gapseq-find = { path = "crates/gapseq-find" }
-gapseq-transport = { path = "crates/gapseq-transport" }
-gapseq-draft = { path = "crates/gapseq-draft" }
-gapseq-fill = { path = "crates/gapseq-fill" }
-gapseq-medium = { path = "crates/gapseq-medium" }
+gapsmith-core = { path = "crates/gapsmith-core" }
+gapsmith-io   = { path = "crates/gapsmith-io" }
+gapsmith-db   = { path = "crates/gapsmith-db" }
+gapsmith-sbml = { path = "crates/gapsmith-sbml" }
+gapsmith-align = { path = "crates/gapsmith-align" }
+gapsmith-find = { path = "crates/gapsmith-find" }
+gapsmith-transport = { path = "crates/gapsmith-transport" }
+gapsmith-draft = { path = "crates/gapsmith-draft" }
+gapsmith-fill = { path = "crates/gapsmith-fill" }
+gapsmith-medium = { path = "crates/gapsmith-medium" }
 
 # SBML-specific
 quick-xml   = "0.37"

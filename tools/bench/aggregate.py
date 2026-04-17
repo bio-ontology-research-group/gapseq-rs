@@ -100,7 +100,7 @@ def main():
         break
 
     print()
-    print("| Genome | Proteins | Stage | upstream R (s) | gapseq-rs (s) | Speedup | Rs RSS (MB) | R RSS (MB) |")
+    print("| Genome | Proteins | Stage | upstream R (s) | gapsmith (s) | Speedup | Rs RSS (MB) | R RSS (MB) |")
     print("|---|---:|---|---:|---:|---:|---:|---:|")
     organism_names = {
         "GCF_000005845.2_ASM584v2_protein": "*E. coli* K-12",

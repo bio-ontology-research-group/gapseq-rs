@@ -1,11 +1,11 @@
-# gapseq-rs porting notes
+# gapsmith porting notes
 
 Intentional and unintentional deviations from the upstream R/bash gapseq
 codebase. Each entry says *what* differs, *why*, and whether downstream
 output parity holds.
 
 This document is the authoritative list of "known non-R behavior". If you
-find something in gapseq-rs that differs from real gapseq and it's not
+find something in gapsmith that differs from real gapseq and it's not
 listed here, please file an issue — we treat those as bugs.
 
 ---
@@ -99,13 +99,13 @@ listed here, please file an issue — we treat those as bugs.
 
 ## 6. Not yet implemented
 
-- `gapseq medium` — rule-based medium inference. Planned for M10.
-- `gapseq fill` — 4-phase gap-filling driver. Planned for M9 (FBA/pFBA
-  primitives already shipped in M8 under `gapseq-fill`).
-- `gapseq adapt` — add/remove reactions on an existing model. Planned for M10.
-- `gapseq pan` — pan-model union. Planned for M10.
-- `gapseq doall` — chain find→find-transport→draft→medium→fill. Planned for M10.
-- `gapseq update-sequences` — seqdb download from upstream. Planned for M10.
+- `gapsmith medium` — rule-based medium inference. Planned for M10.
+- `gapsmith fill` — 4-phase gap-filling driver. Planned for M9 (FBA/pFBA
+  primitives already shipped in M8 under `gapsmith-fill`).
+- `gapsmith adapt` — add/remove reactions on an existing model. Planned for M10.
+- `gapsmith pan` — pan-model union. Planned for M10.
+- `gapsmith doall` — chain find→find-transport→draft→medium→fill. Planned for M10.
+- `gapsmith update-sequences` — seqdb download from upstream. Planned for M10.
 - HMM-based `predict_domain` / `predict_gramstaining`. Planned alongside M10.
 
 ## 6a. fill (M8–M9) — LP primitives + single-iteration gap-fill (shipped)
@@ -113,19 +113,19 @@ listed here, please file an issue — we treat those as bugs.
 - Split-flux encoding: each reaction contributes `vp_r, vn_r ≥ 0` with net
   `v_r = vp_r − vn_r`. `|v_r| = vp_r + vn_r` is linear, which keeps pFBA a
   pure LP. The bound translation is documented in
-  `crates/gapseq-fill/src/lp.rs` — `[lb, ub]` on the net flux becomes a
+  `crates/gapsmith-fill/src/lp.rs` — `[lb, ub]` on the net flux becomes a
   per-variable ub pair `(max(ub,0), max(−lb,0))`, with additional lower
   bounds when the direction is strictly forced.
-- FBA (`gapseq-fill::fba`) — maximise / minimise `Σ c_r · (vp_r − vn_r)` s.t.
+- FBA (`gapsmith-fill::fba`) — maximise / minimise `Σ c_r · (vp_r − vn_r)` s.t.
   `S · (vp − vn) = 0`. HiGHS backend via `good_lp` 1.15.
-- pFBA (`gapseq-fill::pfba`) — `minimise Σ w_r·(vp_r+vn_r) − pfba_coef · Σ c_r·(vp_r−vn_r)`
+- pFBA (`gapsmith-fill::pfba`) — `minimise Σ w_r·(vp_r+vn_r) − pfba_coef · Σ c_r·(vp_r−vn_r)`
   subject to `v_bio ≥ min_growth`. Matches cobrar's `pfbaHeuristic`.
-- pFBA-heuristic ladder (`gapseq-fill::pfba_heuristic`) — port of
+- pFBA-heuristic ladder (`gapsmith-fill::pfba_heuristic`) — port of
   `gapfill4.R:95–137`. Retries up to 15 times, halving the feasibility
   tolerance then the pFBA coefficient on solver failure; validates each
   candidate solution by running FBA on the reduced model after zero-flux
   reactions are removed.
-- `gapseq fba` subcommand — FBA or `--pfba` on a CBOR/JSON model; prints
+- `gapsmith fba` subcommand — FBA or `--pfba` on a CBOR/JSON model; prints
   solver status, objective, biomass flux, and the top-N |flux| reactions.
   Useful for sanity-checking a draft model before `fill` is applied.
 - **Candidate pool** (`pool.rs::build_full_model`) — clone draft, append
@@ -139,7 +139,7 @@ listed here, please file an issue — we treat those as bugs.
   on the full model with bitscore-derived weights, extract utilized
   candidates, add to draft, run KO essentiality loop. Port of
   `gapfill4.R:1–303`.
-- **`gapseq fill`** subcommand — end-to-end `draft → filled` pipeline.
+- **`gapsmith fill`** subcommand — end-to-end `draft → filled` pipeline.
   Ecoli on `MM_glu.csv`: 20 reactions added, final growth 0.53.
 
 ### Known divergences / outstanding work
@@ -152,7 +152,7 @@ listed here, please file an issue — we treat those as bugs.
   `draft` on any model built before M9 — the old CBOR has a structurally
   broken biomass.**
 - **SBML species-id double suffix** — the M7 `species_id` helper blindly
-  appended `_<comp>` to the cpd id. When gapseq-rs stores metabolites as
+  appended `_<comp>` to the cpd id. When gapsmith stores metabolites as
   `cpd00001_c0` (the actual shipped convention), the SBML emitted
   `M_cpd00001_c0_c0`. COBRApy treated these as distinct mets, so SEED
   reactions and biomass didn't link. Fixed in M9: idempotent when the id
@@ -189,7 +189,7 @@ listed here, please file an issue — we treat those as bugs.
 - The R helpers that depend on `pythoncyc` (`meta2pwy.py`, `meta2genes.py`,
   `meta2rea.py`) are one-off MetaCyc DB updaters run ≤ twice per year by
   maintainers. They stay in Python; no Rust port planned.
-- CPLEX solver support — plan stated "no CPLEX path"; gapseq-fill will
+- CPLEX solver support — plan stated "no CPLEX path"; gapsmith-fill will
   use HiGHS via `good_lp` with CBC/Clp as backups.
 
 ## 8. New features not in gapseq
@@ -218,12 +218,12 @@ listed here, please file an issue — we treat those as bugs.
 
 - R-vs-Rust parity tests run the actual R implementation via `Rscript`
   where feasible. This lives in three places:
-  - `crates/gapseq-find/tests/complex_parity.rs` drives
+  - `crates/gapsmith-find/tests/complex_parity.rs` drives
     `tools/r_complex_detection.R` which sources the real
     `src/complex_detection.R`.
-  - `crates/gapseq-find/tests/pipeline_parity.rs` runs real `gapseq find`
-    and gapseq-rs `find` side-by-side with a synthesized minimal seqdb.
-  - `crates/gapseq-transport/tests/parity.rs` does the same for
+  - `crates/gapsmith-find/tests/pipeline_parity.rs` runs real `gapsmith find`
+    and gapsmith `find` side-by-side with a synthesized minimal seqdb.
+  - `crates/gapsmith-transport/tests/parity.rs` does the same for
     `find-transport`.
 - SBML validation runs `python-libsbml` + `cobra` via a uv-managed venv
   at `tools/.sbml-validate/`. Not part of `cargo test` (no libsbml on

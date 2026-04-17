@@ -1,0 +1,22 @@
+[package]
+name = "gapsmith-draft"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Draft model construction for gapsmith (port of src/generate_GSdraft.R + helpers)."
+
+[dependencies]
+gapsmith-core = { workspace = true }
+gapsmith-db = { workspace = true }
+gapsmith-sbml = { workspace = true }
+gapsmith-io = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+flate2 = "1"

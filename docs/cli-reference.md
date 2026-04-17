@@ -12,7 +12,7 @@ These apply to every subcommand:
 
 | Flag | Description |
 |---|---|
-| `--data-dir <PATH>` | Override gapseq reference-data directory. Resolution order when absent: `GAPSEQ_DATA_DIR` env → `$XDG_DATA_HOME/gapseq` → `<exe-dir>/../dat` → `./dat`. |
+| `--data-dir <PATH>` | Override gapseq reference-data directory. Resolution order when absent: `GAPSMITH_DATA_DIR` env → `$XDG_DATA_HOME/gapsmith` → `<exe-dir>/../dat` → `./dat`. |
 | `--seq-dir <PATH>` | Override the sequence database directory. Defaults to `<data-dir>/seq`. |
 | `-K, --threads <N>` | Worker threads. Default: all available cores. |
 | `-v, -vv, -vvv` | Logging verbosity (info / debug / trace). |
@@ -20,7 +20,7 @@ These apply to every subcommand:
 
 ---
 
-## `gapseq doall`
+## `gapsmith doall`
 
 End-to-end pipeline: find → find-transport → draft → medium → fill.
 
@@ -32,7 +32,7 @@ End-to-end pipeline: find → find-transport → draft → medium → fill.
 | `-c, --coverage` | `75` | Coverage cutoff (0–100 %). |
 | `-l, --min-bs-core` | `50.0` | Core-reaction bitscore cutoff. |
 | `-t, --taxonomy` | `auto` | `Bacteria`, `Archaea`, or `auto` (currently maps to Bacteria). |
-| `-m, --medium` | `auto` | Medium CSV, or `auto` to infer via `gapseq medium`. |
+| `-m, --medium` | `auto` | Medium CSV, or `auto` to infer via `gapsmith medium`. |
 | `-f, --out-dir` | `.` | Output directory. |
 | `-K, --threads` | all cores | Thread count. |
 | `--full-suite` | off | Include fill Steps 3 + 4 (slow). |
@@ -42,7 +42,7 @@ Gzipped inputs are auto-decompressed into a `tempfile::tempdir`.
 
 ---
 
-## `gapseq find`
+## `gapsmith find`
 
 Pathway and reaction detection.
 
@@ -66,7 +66,7 @@ Pathway and reaction detection.
 
 ---
 
-## `gapseq find-transport`
+## `gapsmith find-transport`
 
 Transporter detection.
 
@@ -84,7 +84,7 @@ Transporter detection.
 
 ---
 
-## `gapseq draft`
+## `gapsmith draft`
 
 Build a draft metabolic model from `find` + `find-transport` output.
 
@@ -101,7 +101,7 @@ Build a draft metabolic model from `find` + `find-transport` output.
 
 ---
 
-## `gapseq medium`
+## `gapsmith medium`
 
 Rule-based medium inference.
 
@@ -115,7 +115,7 @@ Rule-based medium inference.
 
 ---
 
-## `gapseq fill`
+## `gapsmith fill`
 
 Iterative gap-filling.
 
@@ -137,7 +137,7 @@ Iterative gap-filling.
 
 ---
 
-## `gapseq fba`
+## `gapsmith fba`
 
 FBA / pFBA on an existing model.
 
@@ -153,7 +153,7 @@ FBA / pFBA on an existing model.
 
 ---
 
-## `gapseq adapt`
+## `gapsmith adapt`
 
 Edit reactions or force growth on a compound.
 
@@ -170,7 +170,7 @@ Edit reactions or force growth on a compound.
 
 ---
 
-## `gapseq pan`
+## `gapsmith pan`
 
 Build a pan-draft from N drafts.
 
@@ -184,7 +184,7 @@ Build a pan-draft from N drafts.
 
 ---
 
-## `gapseq update-sequences`
+## `gapsmith update-sequences`
 
 Zenodo seqdb sync.
 
@@ -198,7 +198,7 @@ Zenodo seqdb sync.
 
 ---
 
-## `gapseq convert`
+## `gapsmith convert`
 
 CBOR ↔ JSON round-trip.
 
@@ -211,7 +211,7 @@ CBOR ↔ JSON round-trip.
 
 ---
 
-## `gapseq export-sbml`
+## `gapsmith export-sbml`
 
 Serialise a CBOR / JSON model as SBML L3V1 + FBC2 + groups.
 
@@ -223,7 +223,7 @@ Serialise a CBOR / JSON model as SBML L3V1 + FBC2 + groups.
 
 ---
 
-## `gapseq align`
+## `gapsmith align`
 
 Run a single aligner standalone. Useful for debugging reference-FASTA
 issues or building a precomputed TSV to feed into `find --aligner precomputed`.
@@ -242,7 +242,7 @@ issues or building a precomputed TSV to feed into `find --aligner precomputed`.
 
 ---
 
-## `gapseq batch-align`
+## `gapsmith batch-align`
 
 Cluster N genomes + single alignment + per-genome TSV expansion.
 
@@ -259,20 +259,20 @@ Cluster N genomes + single alignment + per-genome TSV expansion.
 
 ---
 
-## `gapseq db inspect`
+## `gapsmith db inspect`
 
 Smoke-test the `--data-dir`. Loads every reference table and prints row
 counts. No flags beyond `--data-dir`.
 
 ---
 
-## `gapseq test`
+## `gapsmith test`
 
 Print resolved paths + which external tool binaries are on `PATH`.
 
 ---
 
-## `gapseq example-model`
+## `gapsmith example-model`
 
 Emit a small hand-built toy model (3 metabolites / 2 reactions) as CBOR.
 Useful for smoke-testing format round-trips and downstream tools.

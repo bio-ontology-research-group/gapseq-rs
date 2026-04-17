@@ -1,4 +1,4 @@
-# gapseq-rs
+# gapsmith
 
 Rust reimplementation of [gapseq](https://github.com/jotech/gapseq).
 For a detailed comparison with the original R/bash implementation, see
@@ -6,13 +6,13 @@ For a detailed comparison with the original R/bash implementation, see
 
 ## What it does
 
-gapseq-rs reconstructs genome-scale metabolic models from bacterial
+gapsmith reconstructs genome-scale metabolic models from bacterial
 proteomes. Given a protein FASTA, it predicts metabolic pathways, detects
 transporters, assembles a draft stoichiometric model, infers a growth
 medium, and gap-fills the model so it can simulate growth.
 
 ```
-gapseq doall genome.faa.gz -f output/
+gapsmith doall genome.faa.gz -f output/
 ```
 
 This produces a gap-filled SBML model that loads directly in COBRApy,
@@ -39,16 +39,16 @@ git clone --depth 1 https://github.com/jotech/gapseq.git
 Then download the reference sequence database:
 
 ```bash
-gapseq update-sequences -t Bacteria
+gapsmith update-sequences -t Bacteria
 ```
 
 ### Build from source
 
 ```bash
-git clone https://github.com/bio-ontology-research-group/gapseq-rs.git
-cd gapseq-rs
+git clone https://github.com/bio-ontology-research-group/gapsmith.git
+cd gapsmith
 cargo build --release
-# Binary: target/release/gapseq
+# Binary: target/release/gapsmith
 ```
 
 ## Quick start
@@ -115,7 +115,7 @@ GPL-3.0-or-later — same as [gapseq](https://github.com/jotech/gapseq).
 
 ## Citation
 
-If you use gapseq-rs, please cite the original gapseq paper:
+If you use gapsmith, please cite the original gapseq paper:
 
 > Zimmermann J, Kaleta C, Özbek Ö, et al. gapseq: informed prediction of
 > bacterial metabolic pathways and reconstruction of accurate metabolic

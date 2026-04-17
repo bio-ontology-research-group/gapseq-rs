@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Benchmark driver for gapseq-rs vs upstream R gapseq.
+# Benchmark driver for gapsmith vs upstream R gapseq.
 #
 # Expects on PATH (or in CONDA_PREFIX/bin):
 #   - gapseq             — the upstream bash dispatcher
-#   - gapseq-rs binary at $GAPSEQ_RS
+#   - gapsmith binary at $GAPSMITH
 #   - blastp / diamond / mmseqs
 #
 # Usage:
@@ -21,7 +21,7 @@ set -o pipefail
 GENOME_DIR=${1:-/mnt/data1/leechuck/gapseq-bench/genomes}
 OUT_DIR=${2:-/mnt/data1/leechuck/gapseq-bench/results}
 GAPSEQ_R=${GAPSEQ_R:-/mnt/data1/leechuck/gapseq-bench/gapseq/gapseq}
-GAPSEQ_RS=${GAPSEQ_RS:-/mnt/data1/leechuck/gapseq-bench/gapseq-rs/target/release/gapseq}
+GAPSMITH=${GAPSMITH:-/mnt/data1/leechuck/gapseq-bench/gapsmith/target/release/gapsmith}
 DATA_DIR=${DATA_DIR:-/mnt/data1/leechuck/gapseq-bench/gapseq/dat}
 # Rust uses blastp/diamond/mmseqs2; R gapseq uses blast/diamond/mmseqs2.
 # We normalise to a single input flag and map per-tool below.
@@ -75,20 +75,20 @@ for genome_path in "$GENOME_DIR"/*.faa.gz "$GENOME_DIR"/*.faa; do
     rust_aligner="$aligner"
     [ "$aligner" = "blast" ] && rust_aligner="blastp"
 
-    # gapseq-rs find
-    time_run "${stem}_${aligner}_find_rs" "$genome_path" gapseq-rs find "$aligner" \
-      "$GAPSEQ_RS" --data-dir "$DATA_DIR" find -A "$rust_aligner" -p all -b 200 -o "$workdir/rs" "$genome_path"
+    # gapsmith find
+    time_run "${stem}_${aligner}_find_rs" "$genome_path" gapsmith find "$aligner" \
+      "$GAPSMITH" --data-dir "$DATA_DIR" find -A "$rust_aligner" -p all -b 200 -o "$workdir/rs" "$genome_path"
 
-    # R gapseq find
-    time_run "${stem}_${aligner}_find_r" "$genome_path" gapseq find "$aligner" \
+    # R gapsmith find
+    time_run "${stem}_${aligner}_find_r" "$genome_path" gapsmith find "$aligner" \
       "$GAPSEQ_R" find -A "$aligner" -p all -b 200 -f "$workdir/r" "$genome_path"
 
-    # gapseq-rs find-transport
-    time_run "${stem}_${aligner}_ft_rs" "$genome_path" gapseq-rs find-transport "$aligner" \
-      "$GAPSEQ_RS" --data-dir "$DATA_DIR" find-transport -A "$rust_aligner" -b 50 -o "$workdir/rs" "$genome_path"
+    # gapsmith find-transport
+    time_run "${stem}_${aligner}_ft_rs" "$genome_path" gapsmith find-transport "$aligner" \
+      "$GAPSMITH" --data-dir "$DATA_DIR" find-transport -A "$rust_aligner" -b 50 -o "$workdir/rs" "$genome_path"
 
-    # R gapseq find-transport
-    time_run "${stem}_${aligner}_ft_r" "$genome_path" gapseq find-transport "$aligner" \
+    # R gapsmith find-transport
+    time_run "${stem}_${aligner}_ft_r" "$genome_path" gapsmith find-transport "$aligner" \
       "$GAPSEQ_R" find-transport -A "$aligner" -b 50 -f "$workdir/r" "$genome_path"
 
     # Assemble input paths for draft+fill stages.
@@ -97,12 +97,12 @@ for genome_path in "$GENOME_DIR"/*.faa.gz "$GENOME_DIR"/*.faa; do
     pwys="$workdir/rs/${stem}-all-Pathways.tbl"
 
     if [ -s "$rxns" ] && [ -s "$tr" ]; then
-      # gapseq-rs draft
-      time_run "${stem}_${aligner}_draft_rs" "$genome_path" gapseq-rs draft "$aligner" \
-        "$GAPSEQ_RS" --data-dir "$DATA_DIR" draft -r "$rxns" -t "$tr" -b neg -o "$workdir/rs"
-      # R gapseq draft — only runs if cobrar is installed.
+      # gapsmith draft
+      time_run "${stem}_${aligner}_draft_rs" "$genome_path" gapsmith draft "$aligner" \
+        "$GAPSMITH" --data-dir "$DATA_DIR" draft -r "$rxns" -t "$tr" -b neg -o "$workdir/rs"
+      # R gapsmith draft — only runs if cobrar is installed.
       if command -v Rscript >/dev/null 2>&1 && Rscript -e 'stopifnot("cobrar" %in% installed.packages()[,1])' >/dev/null 2>&1; then
-        time_run "${stem}_${aligner}_draft_r" "$genome_path" gapseq draft "$aligner" \
+        time_run "${stem}_${aligner}_draft_r" "$genome_path" gapsmith draft "$aligner" \
           "$GAPSEQ_R" draft -r "$rxns" -t "$tr" -b neg -f "$workdir/r"
       fi
     fi
@@ -111,12 +111,12 @@ for genome_path in "$GENOME_DIR"/*.faa.gz "$GENOME_DIR"/*.faa; do
     draft_cbor="$workdir/rs/${stem}-draft.gmod.cbor"
     medium_csv="$workdir/rs/${stem}-medium.csv"
     if [ -s "$draft_cbor" ] && [ -s "$pwys" ]; then
-      time_run "${stem}_${aligner}_medium_rs" "$genome_path" gapseq-rs medium "$aligner" \
-        "$GAPSEQ_RS" --data-dir "$DATA_DIR" medium -m "$draft_cbor" -p "$pwys" -o "$medium_csv"
+      time_run "${stem}_${aligner}_medium_rs" "$genome_path" gapsmith medium "$aligner" \
+        "$GAPSMITH" --data-dir "$DATA_DIR" medium -m "$draft_cbor" -p "$pwys" -o "$medium_csv"
     fi
     if [ -s "$draft_cbor" ] && [ -s "$medium_csv" ]; then
-      time_run "${stem}_${aligner}_fill_rs" "$genome_path" gapseq-rs fill "$aligner" \
-        "$GAPSEQ_RS" --data-dir "$DATA_DIR" fill "$draft_cbor" -n "$medium_csv" -r "$rxns" -k 0.01 -o "$workdir/rs" --no-sbml
+      time_run "${stem}_${aligner}_fill_rs" "$genome_path" gapsmith fill "$aligner" \
+        "$GAPSMITH" --data-dir "$DATA_DIR" fill "$draft_cbor" -n "$medium_csv" -r "$rxns" -k 0.01 -o "$workdir/rs" --no-sbml
     fi
   done
 done
