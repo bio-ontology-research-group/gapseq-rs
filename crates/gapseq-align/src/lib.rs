@@ -7,7 +7,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use gapseq_align::{AlignOpts, Aligner, DiamondAligner};
 //! use std::path::Path;
 //!

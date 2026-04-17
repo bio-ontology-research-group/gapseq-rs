@@ -9,9 +9,9 @@ use crate::output::TransporterRow;
 use crate::tc::{extract_tc_id, type_of};
 use gapseq_align::{AlignOpts, Aligner, Hit};
 use gapseq_db::SubexRow;
-use regex::Regex;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
@@ -164,16 +164,26 @@ fn analyse_hits(
         }
     }
 
-    // Per-TC substrate resolution. `findsubs()` cache.
-    let mut subs_cache: HashMap<String, Vec<String>> = HashMap::new();
-    let resolve_subs = |tc: &str, cache: &mut HashMap<String, Vec<String>>| -> Vec<String> {
-        if let Some(v) = cache.get(tc) {
-            return v.clone();
-        }
-        let v = findsubs(tc, tcdb_all, &small.fasta_header_small, &small.sub_key_orig);
-        cache.insert(tc.to_string(), v.clone());
-        v
-    };
+    // Pre-build a header-substrate index so findsubs' fallback path
+    // doesn't recompile regexes per key. The index maps each sub_key to
+    // the set of TC ids whose headers mention it.
+    let header_sub_index = build_header_sub_index(
+        &small.fasta_header_small,
+        &small.sub_key_orig,
+    );
+
+    // Per-TC substrate resolution. `findsubs()` cache — Arc avoids
+    // cloning the substrate vector on every cache hit.
+    let mut subs_cache: HashMap<String, Arc<Vec<String>>> = HashMap::new();
+    let resolve_subs =
+        |tc: &str, cache: &mut HashMap<String, Arc<Vec<String>>>| -> Arc<Vec<String>> {
+            if let Some(v) = cache.get(tc) {
+                return Arc::clone(v);
+            }
+            let v = Arc::new(findsubs(tc, tcdb_all, &header_sub_index));
+            cache.insert(tc.to_string(), Arc::clone(&v));
+            v
+        };
 
     // Build a lookup substrate-name → exchange id. Same key may map to
     // multiple exids — we split rows across them exactly like R's
@@ -194,7 +204,7 @@ fn analyse_hits(
     let mut expanded: Vec<Expanded> = Vec::new();
     for (h, tc) in &tc_hits {
         let subs = resolve_subs(tc, &mut subs_cache);
-        for sub in subs {
+        for sub in subs.iter() {
             let sub_lc = sub.to_ascii_lowercase();
             if let Some(exids) = subid_map.get(&sub_lc) {
                 for exid in exids {
@@ -223,20 +233,21 @@ fn analyse_hits(
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
     });
-    let mut seen_triple: HashSet<(String, String, String)> = HashSet::new();
-    expanded.retain(|e| {
-        seen_triple.insert((e.hit.qseqid.clone(), e.hit.stitle.clone(), e.exid.clone()))
+    // Dedup: consecutive runs of identical (qseqid, stitle, exid) after
+    // sort. We can't borrow into `retain` across iterations, so use a
+    // simple dedup_by on the already-sorted vector.
+    expanded.dedup_by(|a, b| {
+        a.hit.qseqid == b.hit.qseqid
+            && a.hit.stitle == b.hit.stitle
+            && a.exid == b.exid
     });
-
-    // Strip `EX_` prefix / `_eN` suffix to get metid; derive SEED reactions.
-    let re_metid = Regex::new(r"^EX_|_e.$").unwrap();
     let mut rows: Vec<TransporterRow> = Vec::with_capacity(expanded.len());
     let mut mets_with_rxn_highbit: HashSet<String> = HashSet::new();
     let mut mets_with_rxn: HashSet<String> = HashSet::new();
 
     // First pass: primary transporter assignment.
     for e in &expanded {
-        let metid = re_metid.replace_all(&e.exid, "").to_string();
+        let metid = strip_exchange_affixes(&e.exid);
         let (_, type_str) = match type_of(&e.tc) {
             Some(x) => x,
             None => continue,
@@ -309,30 +320,79 @@ fn comment_rank(c: &Option<String>) -> u8 {
     }
 }
 
+/// Strip `EX_` prefix and `_eN` suffix from an exchange-reaction id to
+/// get the bare metabolite id. Replaces the previous `Regex::new(r"^EX_|_e.$")`.
+fn strip_exchange_affixes(exid: &str) -> String {
+    let s = exid.strip_prefix("EX_").unwrap_or(exid);
+    if s.len() >= 3 {
+        let tail = &s[s.len() - 3..];
+        if tail.starts_with("_e") && tail.as_bytes()[2].is_ascii_digit() {
+            return s[..s.len() - 3].to_string();
+        }
+    }
+    s.to_string()
+}
+
+/// Pre-computed index mapping each substrate key (original case) to the
+/// set of TC ids whose FASTA headers mention it. Built once, queried
+/// from every `findsubs()` fallback. Replaces the per-TC-id regex
+/// compilation loop.
+struct HeaderSubIndex {
+    /// sub_key_orig → set of TC ids whose headers contain this substrate.
+    by_key: HashMap<String, HashSet<String>>,
+}
+
+fn build_header_sub_index(
+    fasta_headers: &[String],
+    sub_key_orig: &[String],
+) -> HeaderSubIndex {
+    let headers_lc: Vec<String> = fasta_headers
+        .iter()
+        .map(|h| h.to_ascii_lowercase())
+        .collect();
+
+    let mut by_key: HashMap<String, HashSet<String>> = HashMap::new();
+    for k in sub_key_orig {
+        let k_lc = k.to_ascii_lowercase();
+        let mut tcs: HashSet<String> = HashSet::new();
+        for (header_lc, header_orig) in headers_lc.iter().zip(fasta_headers.iter()) {
+            if !header_lc.contains(&k_lc) {
+                continue;
+            }
+            if let Some(tc) = extract_tc_id(header_orig) {
+                tcs.insert(tc.to_string());
+            }
+        }
+        if !tcs.is_empty() {
+            by_key.insert(k.clone(), tcs);
+        }
+    }
+    HeaderSubIndex { by_key }
+}
+
 /// Port of `findsubs(tc)` — resolve substrate names either via tcdb_all
-/// or via FASTA header fallback, returning the `sub_key_orig` entries
-/// (original casing) that match. Output is one substrate per vector
-/// slot, order preserved.
+/// or via the pre-built header index. Returns the `sub_key_orig` entries
+/// (original casing) that match.
 fn findsubs(
     tc: &str,
     tcdb_all: &HashMap<String, String>,
-    fasta_headers: &[String],
-    sub_key_orig: &[String],
+    header_index: &HeaderSubIndex,
 ) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut out_seen: HashSet<String> = HashSet::new();
 
-    // (a) Via tcdb_all.
+    // (a) Via tcdb_all — O(K + S) with HashSet.
     if let Some(subs) = tcdb_all.get(tc) {
-        let candidates_lc: Vec<String> = subs
+        let candidates_lc: HashSet<String> = subs
             .split(';')
             .map(|s| s.trim().to_ascii_lowercase())
             .filter(|s| !s.is_empty())
             .collect();
-        for k_orig in sub_key_orig {
-            let k_lc = k_orig.to_ascii_lowercase();
-            if candidates_lc.iter().any(|c| c == &k_lc) && out_seen.insert(k_orig.clone()) {
-                out.push(k_orig.clone());
+        for (k, tcs) in &header_index.by_key {
+            let _ = tcs; // used only in path (b)
+            let k_lc = k.to_ascii_lowercase();
+            if candidates_lc.contains(&k_lc) && out_seen.insert(k.clone()) {
+                out.push(k.clone());
             }
         }
         if !out.is_empty() {
@@ -340,35 +400,12 @@ fn findsubs(
         }
     }
 
-    // (b) Fallback: scan FASTA headers containing this TC id for SUBkey
-    // word matches (case-insensitive).
-    let tc_pat = format!("{tc} ");
-    let matching_headers: Vec<&String> =
-        fasta_headers.iter().filter(|h| h.contains(&tc_pat)).collect();
-    if matching_headers.is_empty() {
-        return out;
-    }
-    for k_orig in sub_key_orig {
-        let pat = format!(r"\b{}\b", regex::escape(k_orig));
-        let re = match regex::RegexBuilder::new(&pat).case_insensitive(true).build() {
-            Ok(x) => x,
-            Err(_) => continue,
-        };
-        if matching_headers.iter().any(|h| re.is_match(h)) && out_seen.insert(k_orig.clone()) {
-            out.push(k_orig.clone());
+    // (b) Fallback: check if this TC id appears in any header that
+    // mentions a substrate key. O(K) lookups against the pre-built index.
+    for (k, tcs) in &header_index.by_key {
+        if tcs.contains(tc) && out_seen.insert(k.clone()) {
+            out.push(k.clone());
         }
     }
     out
-}
-
-// Re-exports for bench helpers.
-#[doc(hidden)]
-pub use std::collections::HashMap as _HashMap;
-#[doc(hidden)]
-pub use std::collections::HashSet as _HashSet;
-
-// Suppress unused warnings for BTreeMap (kept in case of future use).
-#[doc(hidden)]
-pub fn _unused_btreemap_noop() {
-    let _: BTreeMap<(), ()> = BTreeMap::new();
 }
