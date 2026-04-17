@@ -123,19 +123,32 @@ pub fn run_find(
 
     // 2. For each unique reaction, resolve reference FASTAs and scan each
     //    one for subunit assignments.
+    //
+    // Multiple reactions frequently share the same reference FASTA (two
+    // reactions with the same EC → same `rev/<EC>.fasta`). Cache the
+    // parsed header list keyed by absolute path so each file is read
+    // and parsed exactly once per `find` invocation. Entries are wrapped
+    // in `Arc` so the cache holds ownership while callers borrow the
+    // parsed headers freely.
     let unique_reactions = dedup_reactions(&expanded);
     let mut seq_by_key: HashMap<ReactionKey, Vec<seqfile::ResolvedSeq>> = HashMap::new();
     let mut subunit_by_qseqid: HashMap<(String, String), Option<String>> = HashMap::new();
     let mut subunit_count_by_key: HashMap<ReactionKey, (bool, u32, String)> = HashMap::new();
+    let mut fasta_header_cache: HashMap<std::path::PathBuf, std::sync::Arc<Vec<(String, String)>>> =
+        HashMap::new();
     for k in &unique_reactions {
         let resolved = seqfile::resolve_for_reaction(seq_opts, &k.rxn, &k.ec, &k.name);
         // Scan every resolved fasta's headers for subunit clues.
         let mut desc_owned: Vec<(String, String, String)> = Vec::new();
         for r in &resolved {
-            if let Ok(entries) = read_fasta_headers(&r.path) {
-                for (acc, full) in entries {
-                    desc_owned.push((r.label.clone(), acc, full));
-                }
+            let entries = fasta_header_cache
+                .entry(r.path.clone())
+                .or_insert_with(|| {
+                    std::sync::Arc::new(read_fasta_headers(&r.path).unwrap_or_default())
+                })
+                .clone();
+            for (acc, full) in entries.iter() {
+                desc_owned.push((r.label.clone(), acc.clone(), full.clone()));
             }
         }
         // Run detect_subunits across the combined descriptor list (gapseq's
