@@ -157,6 +157,7 @@ Local copies:
 | [Architecture](docs/architecture.md) | Crate dependency graph, data flow, LP plumbing |
 | [Feature matrix](docs/feature-matrix.md) | R source → Rust module mapping, status per feature |
 | [Porting notes](docs/porting-notes.md) | Intentional deviations from upstream gapseq |
+| [Performance](docs/performance.md) | Shipped optimisations, benchmarks, semantic-parity results |
 | [Comparison](COMPARISON.md) | Performance benchmarks and feature comparison with upstream |
 
 ## License
